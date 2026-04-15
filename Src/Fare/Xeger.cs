@@ -1,9 +1,9 @@
-﻿/*
+/*
  * Copyright 2009 Wilfred Springer
  * http://github.com/moodmosaic/Fare/
  * Original Java code:
  * http://code.google.com/p/xeger/
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,7 +24,7 @@ using System.Text;
 namespace Fare
 {
     /// <summary>
-    /// An object that will generate text from a regular expression. In a way, 
+    /// An object that will generate text from a regular expression. In a way,
     /// it's the opposite of a regular expression matcher: an instance of this class
     /// will produce text that is guaranteed to match the regular expression passed in.
     /// </summary>
@@ -90,7 +90,7 @@ namespace Fare
         public string Generate()
         {
             var builder = new StringBuilder();
-            this.Generate(builder, automaton.Initial);
+            this.Generate(builder, this.automaton.Initial);
             return builder.ToString();
         }
 
@@ -107,30 +107,47 @@ namespace Fare
             return random.Next(maxForRandom) + min;
         }
 
+        /// <summary>
+        /// Iterative automaton walk (upstream fix for stack overflow on patterns with large character classes).
+        /// Uses weighted transition selection: transitions covering more characters are more likely.
+        /// </summary>
         private void Generate(StringBuilder builder, State state)
         {
-            var transitions = state.GetSortedTransitions(true);
-            if (transitions.Count == 0)
+            while (true)
             {
-                if (!state.Accept)
+                var transitions = state.GetSortedTransitions(true);
+                if (transitions.Count == 0)
                 {
-                    throw new InvalidOperationException("state");
+                    if (!state.Accept)
+                    {
+                        throw new InvalidOperationException("The regex is not solvable");
+                    }
+                    return;
                 }
 
-                return;
+                // Compute total character range across all transitions
+                int totalChars = 0;
+                for (int i = 0; i < transitions.Count; i++)
+                    totalChars += transitions[i].Max - transitions[i].Min + 1;
+
+                if (state.Accept)
+                {
+                    if (this.random.Next(totalChars + 1) == 0) return;
+                }
+
+                // Weighted random selection: transitions covering more characters are more likely
+                int pick = this.random.Next(totalChars);
+                Transition transition = transitions[transitions.Count - 1];
+                int cumulative = 0;
+                for (int i = 0; i < transitions.Count; i++)
+                {
+                    cumulative += transitions[i].Max - transitions[i].Min + 1;
+                    if (pick < cumulative) { transition = transitions[i]; break; }
+                }
+
+                this.AppendChoice(builder, transition);
+                state = transition.To;
             }
-
-            if (state.Accept)
-            {
-
-                var optionsCount = transitions.Sum(x => x.Max - x.Min + 1);
-                if (this.random.Next(optionsCount + 1) == 0) return;
-            }
-
-            var transition = transitions.RandomItemWithProbability(x => x.Max - x.Min + 1);
-            
-            this.AppendChoice(builder, transition);
-            Generate(builder, transition.To);
         }
 
         private void AppendChoice(StringBuilder builder, Transition transition)

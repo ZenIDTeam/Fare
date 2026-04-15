@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -11,8 +11,7 @@
 
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../Fare.snk</AssemblyOriginatorKeyFile>
-    
-  </PropertyGroup>
-  
-</Project>
 
+  </PropertyGroup>
+
+</Project>
